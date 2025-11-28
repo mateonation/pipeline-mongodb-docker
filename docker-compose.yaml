@@ -2,38 +2,32 @@ services:
   mysql:
     image: mysql
     container_name: mysql
-    restart: always
+    restart: on-failure
     environment:
       MYSQL_ROOT_PASSWORD: changeme 
       MYSQL_DATABASE: pipe
     ports:
       - "3306:3306"
-    volumes:
-      - mysql_data:/var/lib/mysql
 
   cassandra:
     image: cassandra
     container_name: cassandra
-    restart: always
+    restart: on-failure
     environment:
       CASSANDRA_CLUSTER_NAME: "pipe-cluster"
     ports:
       - "9042:9042"
-    volumes:
-      - cassandra_data:/var/lib/cassandra
 
   redis:
     image: redis
-    restart: always
+    restart: on-failure
     ports:
       - "6379:6379"
     command: redis-server --requirepass changeme 
-    volumes:
-      - redis_data:/data
 
   mongodb:
     image: mongo
-    restart: always
+    restart: on-failure
     container_name: mongodb
     environment:
       MONGO_INITDB_ROOT_USERNAME: root
@@ -41,11 +35,3 @@ services:
       MONGO_INITDB_DATABASE: pipe
     ports:
       - "27017:27017"
-    volumes:
-      - mongodb_data:/data/db
-
-volumes:
-  mysql_data:
-  cassandra_data:
-  redis_data:
-  mongodb_data:

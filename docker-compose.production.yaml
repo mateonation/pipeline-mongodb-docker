@@ -1,0 +1,26 @@
+services:
+  mysql:
+    restart: always
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+  cassandra:
+    restart: always
+    volumes:
+      - cassandra_data:/var/lib/cassandra
+
+  redis:
+    restart: always
+    volumes:
+      - redis_data:/data
+
+  mongodb:
+    restart: always
+    volumes:
+      - mongodb_data:/data/db
+
+volumes:
+  mysql_data:
+  cassandra_data:
+  redis_data:
+  mongodb_data:
