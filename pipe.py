@@ -4,21 +4,26 @@ import mysql.connector
 import pandas as pd
 import time
 
-DEBUG = True
+class Crono:
+    def __init__(self) -> None:
+        self.start_time = time.time()
+
+    def crono(self):
+        t = time.time() - self.start_time
+        self.start_time = time.time()
+        return t
 
 def main():
-    start_time = time.time()
+    crono = Crono()
     df = pd.read_csv('spotify-clean.csv')
 
-    if DEBUG: print(time.time() - start_time)
-
-    cnx_mysql = mysql.connector.connect(
+    cnx = mysql.connector.connect(
         host="localhost",
         user="root",
         password="changeme",
         database="pipe"
     )
-    cursor = cnx_mysql.cursor()
+    cursor = cnx.cursor()
     
     cursor.execute("DROP TABLE IF EXISTS track")
 
@@ -35,9 +40,12 @@ def main():
     sql = "INSERT INTO track VALUES (%s, %s, %s, %s, %s, %s)"
     tuples=[x for x in df.itertuples(index=False, name=None)]
     cursor.executemany(sql, tuples)
-    cnx_mysql.commit()
+    cnx.commit()
+    cursor.execute("SELECT * FROM track")
 
-    if DEBUG: print(time.time() - start_time)
+    print(f"Información insertada en MySQL en {crono.crono():.2f} segundos.")
+    print(f"{len(cursor.fetchall())} inserciones.")
+
     cursor.execute("SELECT * FROM track")
     rows = cursor.fetchall()
     df = pd.DataFrame(rows, columns=[x[0] for x in cursor.description])
@@ -63,11 +71,10 @@ def main():
     rows=list(df.itertuples(index=False, name=None))
     futueres = session.execute_concurrent_with_args(ps, tuples)
 
-    if DEBUG: print(time.time() - start_time)
-
     result=session.execute("SELECT * FROM track")
     errors = [r for r in futueres if not r[0]]
-    print(f"Inserciones en cassandra: {len(result.all())}\nErrores totales: {len(errors)}")
+    print(f"Información insertada en Cassandra en {crono.crono():.2f} segundos.")
+    print(f"{len(result.all())} inserciones y {len(errors)} errores.")
 
     uri = "mongodb://root:changeme@localhost:27017/admin"
     client = MongoClient(uri)
@@ -76,7 +83,7 @@ def main():
     db.drop_collection("tracks-MongoDB")
     coleccion = db["tracks-MongoDB"]
 
-    cursor.execute("SELECT * FROM track;")
+    cursor.execute("SELECT * FROM track")
     rows = cursor.fetchall()
     documentos=list()
     for r in rows:
@@ -90,6 +97,11 @@ def main():
         })
     coleccion.insert_many(documentos)
 
-    print(f"Inserciones en mongo: {coleccion.count_documents({})}. {time.time() - start_time}")
+    print(f"Información insertada en Mongo en {crono.crono():.2f} segundos.")
+    print(f"{coleccion.count_documents({})} inserciones.")
+
+    cnx.close()
+    session.shutdown()
+    client.close()
 
 if __name__ == "__main__": main()
