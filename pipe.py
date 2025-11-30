@@ -1,14 +1,15 @@
 from cassandra.cluster import Cluster
+from pymongo import MongoClient
 import mysql.connector
 import pandas as pd
 import time
-from itertools import count
 
 DEBUG = True
 
 def main():
     start_time = time.time()
     df = pd.read_csv('spotify-clean.csv')
+
     if DEBUG: print(time.time() - start_time)
 
     cnx_mysql = mysql.connector.connect(
@@ -67,5 +68,28 @@ def main():
     result=session.execute("SELECT * FROM track")
     errors = [r for r in futueres if not r[0]]
     print(f"Inserciones en cassandra: {len(result.all())}\nErrores totales: {len(errors)}")
+
+    uri = "mongodb://root:changeme@localhost:27017/admin"
+    client = MongoClient(uri)
+    db = client.pipe
+
+    db.drop_collection("tracks-MongoDB")
+    coleccion = db["tracks-MongoDB"]
+
+    cursor.execute("SELECT * FROM track;")
+    rows = cursor.fetchall()
+    documentos=list()
+    for r in rows:
+        documentos.append({
+            "_id": r[0],
+            "artists": r[1],
+            "album_name ": r[2],
+            "track_name": r[3],
+            "popularity": r[4],
+            "duration_ms": r[5]
+        })
+    coleccion.insert_many(documentos)
+
+    print(f"Inserciones en mongo: {coleccion.count_documents({})}. {time.time() - start_time}")
 
 if __name__ == "__main__": main()
