@@ -16,17 +16,16 @@ class Crono:
         return t
 
 def clean_dataset(df: pd.DataFrame):
-    df.drop(columns="Unnamed: 0", inplace=True)
-    df.dropna(inplace=True)
-    df = df.iloc[:50000, :6]
-    df.drop_duplicates(subset="track_id",inplace=True)
-    return
+    new_df = df.iloc[:50000, :7]
+    new_df.drop(columns="Unnamed: 0", inplace=True)
+    new_df.dropna(inplace=True)
+    new_df.drop_duplicates(subset="track_id",inplace=True)
+    return new_df
 
 def main():
     crono = Crono()
 
-    df = pd.read_csv(CSV)
-    clean_dataset(df)
+    df = clean_dataset(pd.read_csv(CSV))
 
     cnx = mysql.connector.connect(
         host="localhost",
