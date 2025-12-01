@@ -42,3 +42,5 @@ pip install --no-input pandas cassandra-driver pymongo mysql-connector-python ma
 
 # Arrancamos el docker de producción
 sudo docker compose -f docker-compose.yaml -f docker-compose.production.yaml up -d
+
+python pipe.py

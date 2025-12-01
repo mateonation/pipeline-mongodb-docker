@@ -4,6 +4,8 @@ import mysql.connector
 import pandas as pd
 import time
 
+CSV='spotify-tracks.csv'
+
 class Crono:
     def __init__(self) -> None:
         self.start_time = time.time()
@@ -13,9 +15,18 @@ class Crono:
         self.start_time = time.time()
         return t
 
+def clean_dataset(df: pd.DataFrame):
+    df.drop(columns="Unnamed: 0", inplace=True)
+    df.dropna(inplace=True)
+    df = df.iloc[:50000, :6]
+    df.drop_duplicates(subset="track_id",inplace=True)
+    return
+
 def main():
     crono = Crono()
-    df = pd.read_csv('spotify-clean.csv')
+
+    df = pd.read_csv(CSV)
+    clean_dataset(df)
 
     cnx = mysql.connector.connect(
         host="localhost",
