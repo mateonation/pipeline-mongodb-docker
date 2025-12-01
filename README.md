@@ -18,7 +18,7 @@
 ```
 
 ## Grupo
-*   **Fran** 
 *   **Paula** 
-*   **Mateo** 
+*   **Mateo**
+*   **Fran** 
 *   **Edu** 
