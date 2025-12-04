@@ -11,8 +11,6 @@ REDIS_KEY_COLUMN = "artists"
 REDIS_VALUE_COLUMN = "album_name"
 URI_MONGO= "mongodb://root:changeme@localhost:27017/admin"
 
-CSV='spotify-tracks.csv'
-
 class Crono:
     def __init__(self) -> None:
         self.start_time = time.time()
