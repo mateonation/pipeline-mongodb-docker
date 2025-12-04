@@ -32,7 +32,12 @@ def clean_dataset(df: pd.DataFrame):
 def main():
     crono = Crono()
 
-    df = clean_dataset(pd.read_csv(CSV))
+    df = pd.read_csv('spotify-tracks.csv')
+    df.drop(columns="Unnamed: 0", inplace=True)
+    df.dropna(inplace=True)
+    df = df.iloc[:50000, :6]
+    df.drop_duplicates(subset="track_id",inplace=True)
+    df.to_csv("../spotify-clean.csv", index=False)
 
     cnx = mysql.connector.connect(
         host="localhost",
@@ -92,7 +97,6 @@ def main():
     print(f"Información insertada en Cassandra en {crono.crono():.2f} segundos.")
     print(f"{len(result.all())} inserciones y {len(errors)} errores.")
 
-
     query = f"SELECT {REDIS_KEY_COLUMN}, {REDIS_VALUE_COLUMN} FROM {THE_TABLE};"
     rows = session_cassandra.execute(query)
 
@@ -121,6 +125,19 @@ def main():
 
     results = pipe.execute()
     print(f"{len(results)}/{len(data_to_load)} pares Clave-Valor insertados en Redis.")
+
+    #Datos de prueba para replicar el flujo de datos exactamente
+    data_to_load = [("banda1", "Álbum 1"),("banda2", "Álbum 2"),("banda3", "Álbum 3") ]
+
+    for artist, album in data_to_load:
+        redis_key = f"artist:{artist}"
+        session_redis.set(redis_key, album)
+
+    for artist, _ in data_to_load:
+        redis_key = f"artist:{artist}"
+        stored_value = session_redis.get(redis_key)
+        print(f"{redis_key} -> {stored_value}")    
+
 
     client = MongoClient(URI_MONGO)
     db = client.pipe
