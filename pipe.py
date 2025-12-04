@@ -4,6 +4,12 @@ import mysql.connector
 import pandas as pd
 import time
 import redis
+import sys
+
+THE_TABLE = "track"
+REDIS_KEY_COLUMN = "artists"
+REDIS_VALUE_COLUMN = "album_name"
+URI_MONGO= "mongodb://root:changeme@localhost:27017/admin"
 
 class Crono:
     def __init__(self) -> None:
@@ -39,7 +45,7 @@ def main():
         ")")
 
     sql = "INSERT INTO track VALUES (%s, %s, %s, %s, %s, %s)"
-    tuples=[x for x in df.itertuples(index=False, name=None)]
+    tuples=list(df.itertuples(index=False, name=None))
     cursor.executemany(sql, tuples)
     cnx.commit()
     cursor.execute("SELECT * FROM track")
@@ -51,13 +57,12 @@ def main():
     rows = cursor.fetchall()
     df = pd.DataFrame(rows, columns=[x[0] for x in cursor.description])
 
-    session=Cluster(['localhost'], port=9042).connect() 
-    session.execute("""CREATE KEYSPACE IF NOT EXISTS pipe WITH replication = {'class': 'SimpleStrategy', 'replication_factor':1};""")
-    session.execute('USE pipe')
-
-    session.execute("DROP TABLE IF EXISTS track")
-
-    session.execute("CREATE TABLE IF NOT EXISTS track ("\
+    session_cassandra=Cluster(['localhost'], port=9042).connect() 
+    session_cassandra.execute("CREATE KEYSPACE IF NOT EXISTS pipe WITH replication = {'class': 'SimpleStrategy', 'replication_factor':1};")
+    session_cassandra.execute("USE pipe")
+    
+    session_cassandra.execute("DROP TABLE IF EXISTS track")
+    session_cassandra.execute("CREATE TABLE IF NOT EXISTS track ("\
         "track_id VARCHAR PRIMARY KEY,"\
         "artists VARCHAR,"\
         "album_name VARCHAR,"\
@@ -65,99 +70,53 @@ def main():
         "popularity INT,"\
         "duration_ms BIGINT)")
 
-    ps = session.prepare("INSERT INTO track ("\
+    ps = session_cassandra.prepare("INSERT INTO track ("\
         "track_id, artists, album_name, track_name, popularity, duration_ms)"\
         "VALUES (?, ?, ?, ?, ?, ?)")
 
     rows=list(df.itertuples(index=False, name=None))
-    futueres = session.execute_concurrent_with_args(ps, tuples)
+    futueres = session_cassandra.execute_concurrent_with_args(ps, tuples)
 
-    result=session.execute("SELECT * FROM track")
+    result=session_cassandra.execute("SELECT * FROM track")
     errors = [r for r in futueres if not r[0]]
     print(f"Información insertada en Cassandra en {crono.crono():.2f} segundos.")
     print(f"{len(result.all())} inserciones y {len(errors)} errores.")
 
-    ########## PARTE REDIS, FRAN PERRO REVISA QUE VAYA BIEN ##########
 
-    #
-#      |\_/|                  
-#      | @ @   Woof!           
-#      |   <>              _  
-#      |  _/\------____ ((| |))
-#      |               `--' |  
-#  ____|_       ___|   |___.' 
-# /_/_____/____/_______|
-# 
+    query = f"SELECT {REDIS_KEY_COLUMN}, {REDIS_VALUE_COLUMN} FROM {THE_TABLE};"
+    rows = session_cassandra.execute(query)
 
-    CASSANDRA_NODES = ['localhost']
-    CASSANDRA_KEYSPACE = 'pipe'
-    CASSANDRA_TABLE = 'track'
+    data_to_load = []
+    for row in rows:
+        key = str(getattr(row, "artists"))
+        value = str(getattr(row, REDIS_VALUE_COLUMN))
+        data_to_load.append((key, value))
 
-    KEY_COLUMN = 'artists'
-    VALUE_COLUMN = 'album_name'
+    print(f"Datos recuperados de Cassandra: {len(data_to_load)} pares Clave-Valor.")
 
-    REDIS_HOST = 'localhost' 
-    REDIS_PORT = 6379
-    REDIS_PASSWORD = "changeme"
+    session_redis = redis.Redis(host='localhost', port=6379, password="changeme", decode_responses=True)
+    session_redis.flushall()
 
-    try:
-        cluster = Cluster(CASSANDRA_NODES)
-        session = cluster.connect(CASSANDRA_KEYSPACE)
-        print(f"Conexión establecida con el Keyspace: {CASSANDRA_KEYSPACE}")
+    counter=0
+    while not session_redis.ping(): 
+        counter += 1
+        if (counter==10): 
+            print("No se consiguió conectar con Redis.", file=sys.stderr)
+            exit(-1)
 
-        query = f"""
-        SELECT {KEY_COLUMN}, {VALUE_COLUMN} FROM {CASSANDRA_TABLE};
-        """
-        rows = session.execute(query)
+    pipe = session_redis.pipeline()
+    for key, value in data_to_load:
+        redis_key = key
+        pipe.set(redis_key, value)
 
-        data_to_load = []
-        for row in rows:
-            key = str(getattr(row, KEY_COLUMN))
-            value = str(getattr(row, VALUE_COLUMN))
-            data_to_load.append((key, value))
+    results = pipe.execute()
+    print(f"{len(results)}/{len(data_to_load)} pares Clave-Valor insertados en Redis.")
 
-        print(f"Datos recuperados de Cassandra: {len(data_to_load)} pares Clave-Valor.")
-
-    except Exception as e:
-        print(f"Error al conectar o consultar Cassandra: {e}")
-        data_to_load = [] 
-
-    if not data_to_load:
-        print("No hay datos.")
-    else:
-        try:
-            r = redis.Redis(
-                host=REDIS_HOST, 
-                port=REDIS_PORT, 
-                password=REDIS_PASSWORD,
-                decode_responses=True)
-            r.ping() 
-    
-            pipe = r.pipeline()
-            for key, value in data_to_load:
-                redis_key = key
-                pipe.set(redis_key, value)
-            
-            results = pipe.execute()
-            print(f"{len(results)}/{len(data_to_load)} pares Clave-Valor insertados en Redis.")
-            
-        except Exception as e:
-            print(f"Error en el proceso: {type(e).__name__}: {e}")    
-
-    for key, _ in data_to_load[:10]:
-            redis_key = key
-            stored_value = r.get(redis_key)
-            print(f"{redis_key} -> {stored_value}")
-
-    r.close()
-    ########## FIN PARTE REDIS ##########     
-
-    uri = "mongodb://root:changeme@localhost:27017/admin"
-    client = MongoClient(uri)
+    client = MongoClient(URI_MONGO)
     db = client.pipe
 
-    db.drop_collection("tracks-MongoDB")
-    coleccion = db["tracks-MongoDB"]
+    db.drop_collection("tracks")
+    coleccion = db["tracks"]
 
     cursor.execute("SELECT * FROM track")
     rows = cursor.fetchall()
@@ -177,10 +136,8 @@ def main():
     print(f"{coleccion.count_documents({})} inserciones.")
 
     cnx.close()
-    session.shutdown()
+    session_cassandra.shutdown()
+    session_redis.close() 
     client.close()
-
-
-
 
 if __name__ == "__main__": main()
