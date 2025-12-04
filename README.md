@@ -82,8 +82,6 @@ docker-compose up -d
 
 ### 3. Ejecutar notebooks individualmente
 
-### 3. Ejecutar notebooks individualmente
-
 Ejecutar los notebooks en orden:
 
 1. `notebook0-parseCSV.ipynb` → limpieza y preparación del CSV
