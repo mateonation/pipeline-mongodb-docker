@@ -30,27 +30,22 @@ Todo el proceso se ha implementado en **Python** y está documentado en **notebo
 ├── docker-compose.production.yaml  # Definición de servicios para producción
 ├── pipe.py                         # Pipeline completo
 ├── notebooks/
-│   ├── notebook1-procesarcsv.ipynb     # Limpieza y preprocesado de datos (Pandas)
+│   ├── notebook1-procesarcsv.ipynb     # Limpieza y preprocesado de datos con Pandas
 │   ├── mysql.ipynb                     # Conexión y operaciones CRUD en MySQL
 │   ├── notebook3-cassandra.ipynb       # Ingesta y modelado de datos en Cassandra
 │   └── notebook4-consultaMongo.ipynb   # Consultas y agregaciones en MongoDB
-├── data/
-│   └── spotify-tracks.csv              # Dataset original
-└── README.md
+└── spotify-tracks.csv              # Dataset original
 ```
 
 
-
 ## Dataset
-
 Archivo: spotify-tracks.csv
 
-Contenido: Información sobre tracks de Spotify, incluyendo artistas, álbum, nombre del track, popularidad y duración.
+Es un dataset muy extenso del que usaremos las columnas: Información sobre tracks de Spotify, incluyendo artistas, álbum, nombre del track, popularidad y duración.
 
 ## Requisitos
-
 - Docker y Docker Compose
-- Python 3.11.14 con las librerías:
+- Python 3.11 con las librerías:
   - `pandas`
   - `mysql-connector-python`
   - `cassandra-driver`
@@ -61,20 +56,37 @@ Contenido: Información sobre tracks de Spotify, incluyendo artistas, álbum, no
 
 ## Ejecución
 
-### 1. Inicializar máquina y dependencias
+### 1. Desplegar en la nube
+El repositorio contiene un script (`machine-init.sh`) pensado para poner a punto una máquina linux(Debian based) para desplegar la pipeline.
+
+Este proyecto ha sido desplegado en el servicio **Open Stack** del Cesga. Para
+esto hemos creado una maquina virtual a la que nos hemos conectado por ssh para
+desplegar el proyecto. Describimos paso a paso para que sirva de ejemplo:
+
+- Copiamos el `machine-init.sh` en la máquina.
 
 ```bash
-sh machine-init.sh
+scp path/to/scritp cesgaxuser@TU_IP:
 ```
-Este script:
 
+- Nos conectamos por ssh a la máquina, le damos permisos de ejecución si no tine
+  y lo lanzamos.
+
+```bash
+ssh cesgaxuser@TU_IP
+chmod +x ./machine-init.sh
+./machine-init.sh
+```
+
+Este script:
+- Actualiza la máquina
 - Instala Docker y Docker Compose
-- Instala Python y librerías necesarias
+- Instala Python y librerías
 - Clona el repositorio
-- Levanta los servicios Docker (MySQL, Cassandra, Redis, MongoDB)
+- Levanta los servicios Docker configurado para producción (MySQL, Cassandra, Redis, MongoDB)
 - Ejecuta el pipeline completo (`pipe.py`)
 
-### 2. Levantar servicios Docker manualmente
+### 2. Levantar servicios en local
 
 ```bash
 docker-compose up -d
