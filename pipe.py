@@ -3,6 +3,7 @@ from pymongo import MongoClient
 import mysql.connector
 import pandas as pd
 import time
+import redis
 
 CSV='spotify-tracks.csv'
 
@@ -113,5 +114,69 @@ def main():
     cnx.close()
     session.shutdown()
     client.close()
+
+
+########## PARTE EDU REDIS ##########
+CASSANDRA_NODES = ['localhost']
+CASSANDRA_KEYSPACE = 'pipe'
+CASSANDRA_TABLE = 'track'
+
+KEY_COLUMN = 'artists'
+VALUE_COLUMN = 'album_name'
+
+REDIS_HOST = 'localhost' 
+REDIS_PORT = 6379
+REDIS_PASSWORD = "changeme"
+
+try:
+    cluster = Cluster(CASSANDRA_NODES)
+    session = cluster.connect(CASSANDRA_KEYSPACE)
+    print(f"Conexión establecida con el Keyspace: {CASSANDRA_KEYSPACE}")
+
+    query = f"""
+    SELECT {KEY_COLUMN}, {VALUE_COLUMN} FROM {CASSANDRA_TABLE};
+    """
+    rows = session.execute(query)
+
+    data_to_load = []
+    for row in rows:
+        key = str(getattr(row, KEY_COLUMN))
+        value = str(getattr(row, VALUE_COLUMN))
+        data_to_load.append((key, value))
+
+    print(f"Datos recuperados de Cassandra: {len(data_to_load)} pares Clave-Valor.")
+
+except Exception as e:
+    print(f"Error al conectar o consultar Cassandra: {e}")
+    data_to_load = [] 
+
+if not data_to_load:
+    print("No hay datos.")
+else:
+    try:
+        r = redis.Redis(
+            host=REDIS_HOST, 
+            port=REDIS_PORT, 
+            password=REDIS_PASSWORD,
+            decode_responses=True)
+        r.ping() 
+  
+        pipe = r.pipeline()
+        for key, value in data_to_load:
+            redis_key = key
+            pipe.set(redis_key, value)
+        
+        results = pipe.execute()
+        print(f"{len(results)}/{len(data_to_load)} pares Clave-Valor insertados en Redis.")
+        
+    except Exception as e:
+        print(f"Error en el proceso: {type(e).__name__}: {e}")    
+
+for key, _ in data_to_load[:10]:
+        redis_key = key
+        stored_value = r.get(redis_key)
+        print(f"{redis_key} -> {stored_value}")
+
+########## FIN PARTE EDU REDIS ##########     
 
 if __name__ == "__main__": main()
