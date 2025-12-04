@@ -177,6 +177,7 @@ for key, _ in data_to_load[:10]:
         stored_value = r.get(redis_key)
         print(f"{redis_key} -> {stored_value}")
 
+r.close()
 ########## FIN PARTE EDU REDIS ##########     
 
 if __name__ == "__main__": main()
