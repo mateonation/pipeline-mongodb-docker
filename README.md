@@ -50,7 +50,7 @@ Contenido: Información sobre tracks de Spotify, incluyendo artistas, álbum, no
 ## Requisitos
 
 - Docker y Docker Compose
-- Python 3.x con las librerías:
+- Python 3.11.14 con las librerías:
   - `pandas`
   - `mysql-connector-python`
   - `cassandra-driver`
