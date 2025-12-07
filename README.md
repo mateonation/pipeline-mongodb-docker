@@ -89,7 +89,7 @@ Este script:
 ### 2. Levantar servicios en local
 
 ```bash
-docker-compose up -d
+docker compose -f docker-compose.yaml -f docker-compose.production.yaml up -d
 ```
 
 ### 3. Ejecutar notebooks individualmente
